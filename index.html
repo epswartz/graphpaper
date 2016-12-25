@@ -13,11 +13,13 @@ var actions;
 var popup;
 var toolset_coord;
 
+//Handles file upload event
 function handleFileSelect(evt) {
     console.log("Saw upload evt");
 
     var files = evt.target.files; // FileList object
 
+    //Read the first file only, couldn't get the file picker to work without input being multiple. Will open as GitHub issue
     var f = files[0];
     var reader = new FileReader();
 
@@ -97,7 +99,8 @@ function BodyLoad() {
 			alert('This will open the image in a new window. Right-click and choose Save As to download the image.');
 			window.open(canvas.toDataURL('image/png'), 'Save as PNG');
 		},
-		/* Present the user with the option to save this drawing for later */
+
+		/* Download a txt file containing JSON that stores the drawing to be continued later */
 		download: function() {
 			
 			var uri = 'data:text;charset=utf-8,' + JSON.stringify(this.data);
@@ -143,38 +146,40 @@ function BodyLoad() {
 		},
 		/* Draw a line */
 		draw: function(x1,y1,x2,y2,type,color,width) {
-			/* If we don't know what type, let's assume it's a plain old line */
-			if(type==undefined)
-				type = 'line';
-			
-			/* Only get the options if it's a plain old line */
-			if(type=='line')
-				this.update_options();
-			
-			/* No color? It's this color! */
-			if(color==undefined)
-				ctx.strokeStyle = this.color;
-			else
-				ctx.strokeStyle = color;
-			
-			/* Even skinny people have width */
-			if(width==undefined)
-				ctx.lineWidth = this.width;
-			else
-				ctx.lineWidth = width;
-			
-			/* Draw the line */
-			ctx.beginPath();	// Set up the path
-			ctx.moveTo(x1,y1);	// The start of the line
-			ctx.lineTo(x2,y2);	// The end of the line
-			ctx.closePath();	// Close the path
-			ctx.stroke();		// Draw it
-			
-			/* If it's a plain line, save it and clean up and guide lines */
-			if(type=='line') {
-				actions.save();
-				canvas.redraw();
-				actions.restore();
+			if(x1 != x2 || y1 != y2){ //If the length of the line is nonzero
+				/* If we don't know what type, let's assume it's a plain old line */
+				if(type==undefined)
+					type = 'line';
+				
+				/* Only get the options if it's a plain old line */
+				if(type=='line')
+					this.update_options();
+				
+				/* No color? It's this color! */
+				if(color==undefined)
+					ctx.strokeStyle = this.color;
+				else
+					ctx.strokeStyle = color;
+				
+				/* Even skinny people have width */
+				if(width==undefined)
+					ctx.lineWidth = this.width;
+				else
+					ctx.lineWidth = width;
+				
+				/* Draw the line */
+				ctx.beginPath();	// Set up the path
+				ctx.moveTo(x1,y1);	// The start of the line
+				ctx.lineTo(x2,y2);	// The end of the line
+				ctx.closePath();	// Close the path
+				ctx.stroke();		// Draw it
+				
+				/* If it's a plain line, save it and clean up and guide lines */
+				if(type=='line') {
+					actions.save();
+					canvas.redraw();
+					actions.restore();
+				}
 			}
 		},
 		/* For drawing a handy guide line */
