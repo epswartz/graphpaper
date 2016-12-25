@@ -365,11 +365,11 @@ function getDocumentPPI() {
 <div id="popup" style="left: 694px; top: 152px; display: none;">664, 122, 0cm</div>
 <div id="toolset">
 <p>
-<button onclick="actions.undo()">Undo</button>
-<button onclick="actions.purge()">Start Over</button>
-<button onclick="actions.png()">Save Png</button>
-<button onclick="actions.download()">Save Txt</button>
-<button onclick="document.getElementById('files').click(); return false;">Upload</button> 
+<button title="Undo your last line" onclick="actions.undo()">Undo</button>
+<button title="Delete all lines, this is bugged atm sorry" onclick="actions.purge()">Clear</button>
+<button title="Download a png file of your drawing" onclick="actions.png()">Get PNG</button>
+<button title="Download a text file which you can reupload to this site later to continue" onclick="actions.download()">Get JSON</button>
+<button title="Upload a JSON txt file to continue previous work" onclick="document.getElementById('files').click(); return false;">Upload</button> 
 <input id="files" type="file" name="files[]" style="visibility: hidden; display: none;" /> 
 <output id="list" style="visibility: hidden; display: none;"></output>
 </p>
