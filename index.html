@@ -91,7 +91,7 @@ function BodyLoad() {
 		},
 		/* Wipe the slate clean */
 		purge: function() {
-			for(var i=0;i<this.data.length;i++)
+			for(var i=this.data.length;i>0;i--)
 				this.undo();
 		},
 		/* Export to PNG */
@@ -367,7 +367,7 @@ function getDocumentPPI() {
 <div id="toolset">
 <p>
 <button title="Undo your last line" onclick="actions.undo()">Undo</button>
-<button title="Delete all lines, this is bugged atm sorry" onclick="actions.purge()">Clear</button>
+<button title="Delete all lines" onclick="actions.purge()">Clear</button>
 <button title="Download a png file of your drawing" onclick="actions.png()">Get PNG</button>
 <button title="Download a text file which you can reupload to this site later to continue" onclick="actions.download()">Get JSON</button>
 <button title="Upload a JSON txt file to continue previous work" onclick="document.getElementById('files').click(); return false;">Upload</button> 
