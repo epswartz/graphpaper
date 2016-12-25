@@ -30,9 +30,11 @@ function handleFileSelect(evt) {
 
     reader.readAsText(f);	
 
-  }
+}
 
-  
+function roundQuarter(num) {
+    return Math.round(num*4)/4;
+}  
 
 
 /* Called when everything is ready */
@@ -55,7 +57,7 @@ function BodyLoad() {
 	
 	/* Update the coordinates in the toolset */
 	toolset_coord.update = function(x,y) {
-		this.innerHTML = x+','+y;
+		this.innerHTML = roundQuarter(x/spacing)+','+roundQuarter(y/spacing);
 	}
 	
 	
@@ -123,7 +125,7 @@ function BodyLoad() {
 
 	/* Draw lines with this */
 	line = {
-		snap: true,	// Snap to grid is enabled by default
+		snap: true,	// Snap to grid is enabled by default // As of v2 this is probably unneeded
 		color: 'blue',	// Default color is blue
 		width: 2,	// Default width is 2
 		x1: 0, y1: 0, x2: 0, y2: 0,	// Default coordinates are all 0,0
@@ -185,10 +187,7 @@ function BodyLoad() {
 			this.draw(this.x1,this.y1,this.snap_to_grid(x),this.snap_to_grid(y),'guide');
 		},
 		/* Calculate the nearest snap point (calculated by spacing) */
-		snap_to_grid: function(p) {
-			if(!this.snap)
-				return false;
-				
+		snap_to_grid: function(p) {	
 			var p2;
 
 			for(var i=p-(spacing/2);i<p+(spacing/2);i++)
@@ -201,8 +200,7 @@ function BodyLoad() {
 		update_options: function() {
 			if(canvas.in_restore)
 				return false;
-			
-			this.snap = document.getElementById('snap_to_grid').checked;
+	
 			this.color = document.getElementById('line_color').value;
 			this.width = document.getElementById('line_width').value;
 		}
@@ -305,8 +303,8 @@ function BodyLoad() {
 		this.style.top = (y+30)+'px';
 		
 		/* Display coordinates and distance */
-		this.innerHTML = x+', '+y;
-		this.innerHTML += ', '+this.distance(line.x1,line.y1,line.snap_to_grid(x),line.snap_to_grid(y))+"cm";
+		this.innerHTML = roundQuarter(x/spacing)+', '+roundQuarter(y/spacing);
+		this.innerHTML += ', '+this.distance(line.x1,line.y1,line.snap_to_grid(x),line.snap_to_grid(y))+" units";
 		
 		/* Show the pop-up */
 		this.style.display = 'block';
@@ -315,10 +313,7 @@ function BodyLoad() {
 	
 	/* Use Pythagora's theorem to calculate distance */
 	popup.distance = function(x1,y1,x2,y2) {
-		var scale_in = document.getElementById('scale_in').value;
-		var scale_frac = document.getElementById('scale_frac').value;	
-
-		var scale = parseFloat(scale_in)+parseFloat(scale_frac);
+		var scale = 1;
 
 		var a = x1-x2;
 		var b = y1-y2;
