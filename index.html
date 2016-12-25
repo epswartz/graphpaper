@@ -1,22 +1,41 @@
 <!DOCTYPE html>
-<!-- saved from url=(0034)http://tommaitland.net/graphpaper/ -->
+<!-- Original from url=(0034)http://tommaitland.net/graphpaper/ -->
+<!-- Author: Ethan Swartzentruber, https://github.com/epswartz/graphpaper -->
 <html><head><meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
-<title>Graph Paper</title>
+<title>Graph Paper 2.0</title>
 <script type="text/javascript">
+
 /* Declare global variables */
 var spacing = 18;
+var spacing_interior = spacing - 2;
 var canvas;
 var ctx;
 var line;
 var actions;
 var popup;
 var toolset_coord;
+var tool;
 
+
+//Handles when the user changes which tool they are using
+function toolChange(){
+	tool = document.getElementById("tool_select").value;
+	
+	if(tool=='fill'){
+		document.getElementById("line_width_p").style.display='none';
+	}else{
+		document.getElementById("line_width_p").style.display='block';
+	}
+	//console.log("Changed tool to " + tool);
+}
+
+//Handles file upload event
 function handleFileSelect(evt) {
     console.log("Saw upload evt");
 
     var files = evt.target.files; // FileList object
 
+    //Read the first file only, couldn't get the file picker to work without input being multiple. Will open as GitHub issue
     var f = files[0];
     var reader = new FileReader();
 
@@ -29,9 +48,11 @@ function handleFileSelect(evt) {
 
     reader.readAsText(f);	
 
-  }
+}
 
-  
+function roundQuarter(num) {
+    return Math.round(num*4)/4;
+}  
 
 
 /* Called when everything is ready */
@@ -40,6 +61,7 @@ function BodyLoad() {
 	popup = document.getElementById('popup');
 	canvas = document.getElementById('canvas');
 	toolset_coord = document.getElementById('coord');
+	tool = 'line';
 	
 	/* Set up the canvas context (ctx) */
 	ctx = canvas.getContext('2d');
@@ -54,7 +76,7 @@ function BodyLoad() {
 	
 	/* Update the coordinates in the toolset */
 	toolset_coord.update = function(x,y) {
-		this.innerHTML = x+','+y;
+		this.innerHTML = roundQuarter(x/spacing)+','+roundQuarter(y/spacing);
 	}
 	
 	
@@ -62,31 +84,47 @@ function BodyLoad() {
 	actions = {
 		data: [],	// empty on start
 		/* Store to the array */
-		save: function() {
-			this.data[this.data.length] = {
-				x1: line.x1,
-				y1: line.y1,
-				x2: line.x2,
-				y2: line.y2,
-				type: 'line',
-				color: line.color,
-				width: line.width
+		save: function() { //Take whatever is saved in the drawing vars and write them to the next space in the array
+			t = tool;
+			if(t == "line"){
+				this.data[this.data.length] = {
+					x1: line.x1,
+					y1: line.y1,
+					x2: line.x2,
+					y2: line.y2,
+					type: 'line',
+					color: line.color,
+					width: line.width
+				}
+			}else if(t == "fill"){
+				this.data[this.data.length] = {
+					x: fill.x,
+					y: fill.y,
+					color: fill.color,
+					type: 'fill'
+				}
 			}
 		},
 		/* Loop through the array and re-draw lines */
 		restore: function() {
-			for(var i=0;i<this.data.length;i++)
-				line.draw(this.data[i].x1, this.data[i].y1, this.data[i].x2, this.data[i].y2, 'restore', this.data[i].color, this.data[i].width);
+			for(var i=0;i<this.data.length;i++){
+				if(this.data[i].type == 'line'){
+					line.draw(this.data[i].x1, this.data[i].y1, this.data[i].x2, this.data[i].y2, 'restore', this.data[i].color, this.data[i].width);
+				}else if(this.data[i].type == 'fill'){
+					fill.draw(this.data[i].x, this.data[i].y, this.data[i].color, true);
+				}
+			}
 		},
 		/* Remove the last action */
 		undo: function() {
+			console.log("Removing from data array:\n" + JSON.stringify(this.data[this.data.length - 1]));
 			this.data.splice(this.data.length-1,1);
 			canvas.redraw();
-			this.restore();
+			//this.restore();
 		},
 		/* Wipe the slate clean */
 		purge: function() {
-			for(var i=0;i<this.data.length;i++)
+			for(var i=this.data.length;i>0;i--)
 				this.undo();
 		},
 		/* Export to PNG */
@@ -94,7 +132,8 @@ function BodyLoad() {
 			alert('This will open the image in a new window. Right-click and choose Save As to download the image.');
 			window.open(canvas.toDataURL('image/png'), 'Save as PNG');
 		},
-		/* Present the user with the option to save this drawing for later */
+
+		/* Download a txt file containing JSON that stores the drawing to be continued later */
 		download: function() {
 			
 			var uri = 'data:text;charset=utf-8,' + JSON.stringify(this.data);
@@ -122,7 +161,7 @@ function BodyLoad() {
 
 	/* Draw lines with this */
 	line = {
-		snap: true,	// Snap to grid is enabled by default
+		snap: true,	// Snap to grid is enabled by default // As of v2 this is probably unneeded
 		color: 'blue',	// Default color is blue
 		width: 2,	// Default width is 2
 		x1: 0, y1: 0, x2: 0, y2: 0,	// Default coordinates are all 0,0
@@ -140,38 +179,40 @@ function BodyLoad() {
 		},
 		/* Draw a line */
 		draw: function(x1,y1,x2,y2,type,color,width) {
-			/* If we don't know what type, let's assume it's a plain old line */
-			if(type==undefined)
-				type = 'line';
-			
-			/* Only get the options if it's a plain old line */
-			if(type=='line')
-				this.update_options();
-			
-			/* No color? It's this color! */
-			if(color==undefined)
-				ctx.strokeStyle = this.color;
-			else
-				ctx.strokeStyle = color;
-			
-			/* Even skinny people have width */
-			if(width==undefined)
-				ctx.lineWidth = this.width;
-			else
-				ctx.lineWidth = width;
-			
-			/* Draw the line */
-			ctx.beginPath();	// Set up the path
-			ctx.moveTo(x1,y1);	// The start of the line
-			ctx.lineTo(x2,y2);	// The end of the line
-			ctx.closePath();	// Close the path
-			ctx.stroke();		// Draw it
-			
-			/* If it's a plain line, save it and clean up and guide lines */
-			if(type=='line') {
-				actions.save();
-				canvas.redraw();
-				actions.restore();
+			if(x1 != x2 || y1 != y2){ //If the length of the line is nonzero
+				/* If we don't know what type, let's assume it's a plain old line */
+				if(type==undefined)
+					type = 'line';
+				
+				/* Only get the options if it's a plain old line */
+				if(type=='line')
+					this.update_options();
+				
+				/* No color? It's this color! */
+				if(color==undefined)
+					ctx.strokeStyle = this.color;
+				else
+					ctx.strokeStyle = color;
+				
+				/* Even skinny people have width */
+				if(width==undefined)
+					ctx.lineWidth = this.width;
+				else
+					ctx.lineWidth = width;
+				
+				/* Draw the line */
+				ctx.beginPath();	// Set up the path
+				ctx.moveTo(x1,y1);	// The start of the line
+				ctx.lineTo(x2,y2);	// The end of the line
+				ctx.closePath();	// Close the path
+				ctx.stroke();		// Draw it
+				
+				/* If it's a plain line, save it and clean up and guide lines */
+				if(type=='line') {
+					actions.save();
+					canvas.redraw();
+					//actions.restore();
+				}
 			}
 		},
 		/* For drawing a handy guide line */
@@ -179,15 +220,12 @@ function BodyLoad() {
 			this.update_options();
 			
 			canvas.redraw();
-			actions.restore();
+			//actions.restore();
 			
 			this.draw(this.x1,this.y1,this.snap_to_grid(x),this.snap_to_grid(y),'guide');
 		},
 		/* Calculate the nearest snap point (calculated by spacing) */
-		snap_to_grid: function(p) {
-			if(!this.snap)
-				return false;
-				
+		snap_to_grid: function(p) {	
 			var p2;
 
 			for(var i=p-(spacing/2);i<p+(spacing/2);i++)
@@ -200,10 +238,58 @@ function BodyLoad() {
 		update_options: function() {
 			if(canvas.in_restore)
 				return false;
-			
-			this.snap = document.getElementById('snap_to_grid').checked;
+	
 			this.color = document.getElementById('line_color').value;
 			this.width = document.getElementById('line_width').value;
+		}
+	}
+
+	/* Fill tool, use this to fill boxes */
+	fill = {
+		color: 'blue',	// Default color is blue
+		x: 0, y: 0,	// Default coordinates are all 0,0
+		/* Record our starting x,y */
+		
+		//Create a new fill object and draw it
+		create: function(x, y){
+			this.update_options();
+			this.draw(x, y, this.color, false);
+		},
+
+		/* fill a space */
+		//Putting in x,y here fills the space between x,y and x+1,y+1.
+		draw: function(x,y,color,restore) {
+			console.log("Called draw with x=" + x + ",  y=" + y + ", color=" + color);
+			/* No color? It's this color! */
+			if(color==undefined)
+				ctx.fillStyle = this.color;
+			else
+				ctx.fillStyle = color;
+			
+			/* Draw the line */
+			var xstart = (x*spacing) + 1;
+			var xstop = xstart + spacing - 1;
+			var ystart = (y * spacing) + 1;
+			var ystop =  ystart + spacing - 1;
+
+			console.log("Filling rectangle " + xstart + ", " + xstop + ", " + ystart + ", " + ystop);
+
+			ctx.fillRect(xstart, ystart, xstop - xstart, ystop - ystart);
+			
+			/* Save it and clean up and guide lines */
+			if(!restore){
+			actions.save();
+			canvas.redraw();
+			//actions.restore();
+			}
+		},
+
+		/* Get all the set options from the toolset */
+		update_options: function() {
+			if(canvas.in_restore)
+				return false;
+	
+			this.color = document.getElementById('line_color').value;
 		}
 	}
 	
@@ -215,7 +301,7 @@ function BodyLoad() {
 
 
 	/* Redraw everything */
-	//This just draws the grid, not lines
+	//Original comment here said (not by me) that this draws just the lines, not the other stuff. That wasn't the case.
 	canvas.redraw = function() {		
 		this.clear();
 		
@@ -248,17 +334,27 @@ function BodyLoad() {
 	/* When the user moves the mouse */
 	canvas.onmousemove = function(e) {
 		if(!e) var e = window.event;
-		
-		var x = e.clientX;
-		var y = e.clientY;
-		
-		/* Update the coordinates */
-		toolset_coord.update(x,y);
-		popup.show(x,y);
-		
-		/* If we're drawing a line, show the guide line */
-		if(this.mousedown)
-			line.guide(x,y);
+
+		if(tool=="line"){ //different actions for the fill tool and the line tool
+			var x = e.clientX;
+			var y = e.clientY;
+			
+			/* Update the coordinates */
+			toolset_coord.update(x,y);
+			popup.show(x,y);
+			
+			/* If we're drawing a line, show the guide line */
+			if(this.mousedown)
+				line.guide(x,y);
+		}else if(tool=="fill"){
+			var x = e.clientX;
+			var y = e.clientY;
+			fill.x = Math.floor(roundQuarter(x/spacing));
+			fill.y = Math.floor(roundQuarter(y/spacing));
+
+			toolset_coord.update(x,y);
+
+		}
 	}
 
 
@@ -273,24 +369,33 @@ function BodyLoad() {
 		var y = e.clientY;
 
 		/* Set the start of the line and show the pop-up */
-		line.start(x,y);
-		popup.show(x,y);
+		console.log("Mousedown, tool is " + tool);
+		if(tool=="line"){
+			line.start(x,y);
+			popup.show(x,y);
+		}else{
+			fill.create(Math.floor(roundQuarter(x/spacing)), Math.floor(roundQuarter(y/spacing)));
+		}
 	}
 
 
 	/* When the clicker comes back up */
 	canvas.onmouseup = function(e) {
 		if(!e) var e = window.event;
-		
-		/* We're no longer holding down */
+
 		this.mousedown = false;
 		
-		var x = e.clientX;
-		var y = e.clientY;
+		if(tool == 'line'){
+			/* We're no longer holding down */
+			
+			
+			var x = e.clientX;
+			var y = e.clientY;
 
-		/* Set the stop point and hide the pop-up */
-		line.stop(x,y);
-		popup.hide();
+			/* Set the stop point and hide the pop-up */
+			line.stop(x,y);
+			popup.hide();
+		}
 	}
 	
 	
@@ -304,8 +409,8 @@ function BodyLoad() {
 		this.style.top = (y+30)+'px';
 		
 		/* Display coordinates and distance */
-		this.innerHTML = x+', '+y;
-		this.innerHTML += ', '+this.distance(line.x1,line.y1,line.snap_to_grid(x),line.snap_to_grid(y))+"cm";
+		this.innerHTML = roundQuarter(x/spacing)+', '+roundQuarter(y/spacing);
+		this.innerHTML += ', '+this.distance(line.x1,line.y1,line.snap_to_grid(x),line.snap_to_grid(y))+" units";
 		
 		/* Show the pop-up */
 		this.style.display = 'block';
@@ -314,10 +419,7 @@ function BodyLoad() {
 	
 	/* Use Pythagora's theorem to calculate distance */
 	popup.distance = function(x1,y1,x2,y2) {
-		var scale_in = document.getElementById('scale_in').value;
-		var scale_frac = document.getElementById('scale_frac').value;	
-
-		var scale = parseFloat(scale_in)+parseFloat(scale_frac);
+		var scale = 1;
 
 		var a = x1-x2;
 		var b = y1-y2;
@@ -366,7 +468,7 @@ function getDocumentPPI() {
 <div id="toolset">
 <p>
 <button title="Undo your last line" onclick="actions.undo()">Undo</button>
-<button title="Delete all lines, this is bugged atm sorry" onclick="actions.purge()">Clear</button>
+<button title="Delete all lines" onclick="actions.purge()">Clear</button>
 <button title="Download a png file of your drawing" onclick="actions.png()">Get PNG</button>
 <button title="Download a text file which you can reupload to this site later to continue" onclick="actions.download()">Get JSON</button>
 <button title="Upload a JSON txt file to continue previous work" onclick="document.getElementById('files').click(); return false;">Upload</button> 
@@ -378,11 +480,14 @@ function getDocumentPPI() {
 <span id="coord">664,122</span>
 </p>
 <p>
-<label>Snap to grid</label>
-<input type="checkbox" id="snap_to_grid" checked="">
+<label>Tool</label>
+<select id="tool_select" onchange="toolChange()">
+<option selected="">line</option>
+<option>fill</option>
+</select>
 </p>
 <p>
-<label>Line Color</label>
+<label>Color</label>
 <select id="line_color">
 <option>Black</option>
 <option>Red</option>
@@ -393,7 +498,7 @@ function getDocumentPPI() {
 <option>Purple</option>
 </select>
 </p>
-<p>
+<p id="line_width_p">
 <label>Line Width</label>
 <select id="line_width">
 <option>1</option>
@@ -406,41 +511,6 @@ function getDocumentPPI() {
 <option>8</option>
 <option>9</option>
 <option>10</option>
-</select>
-</p>
-<p>
-<label>Scale</label>
-<select id="scale_in">
-<option>0</option>
-<option selected="">1</option>
-<option>2</option>
-<option>3</option>
-<option>4</option>
-<option>5</option>
-<option>6</option>
-<option>7</option>
-<option>8</option>
-<option>9</option>
-<option>10</option>
-<option>11</option>
-<option>12</option>
-</select>
-<span style="float: left">.</span>
-<select id="scale_frac">
-<option>0</option>
-<option value=".25">25</option>
-<option value=".5">5</option>
-<option value=".75">75</option>
-</select>
-"
-</p>
-<p>
-<label>Graph Rule</label>
-<select id="spacing" onchange="spacing=(this.value*72)/2.5;canvas.redraw()">
-<option value=".25">2.5mm</option>
-<option value=".5">5mm</option>
-<option value=".75">7.5mm</option>
-<option value="1">10mm</option>
 </select>
 </p>
 </div>
