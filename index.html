@@ -1,17 +1,26 @@
 <!DOCTYPE html>
 <!-- Original from url=(0034)http://tommaitland.net/graphpaper/ -->
+<!-- Author: Ethan Swartzentruber, https://github.com/epswartz/graphpaper -->
 <html><head><meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
 <title>Graph Paper 2.0</title>
 <script type="text/javascript">
 
 /* Declare global variables */
 var spacing = 18;
+var spacing_interior = spacing - 2;
 var canvas;
 var ctx;
 var line;
 var actions;
 var popup;
 var toolset_coord;
+var tool;
+
+
+function toolChange(){
+	tool = document.getElementById("tool_select").value;
+	console.log("Changed tool to " + tool);
+}
 
 //Handles file upload event
 function handleFileSelect(evt) {
@@ -45,6 +54,7 @@ function BodyLoad() {
 	popup = document.getElementById('popup');
 	canvas = document.getElementById('canvas');
 	toolset_coord = document.getElementById('coord');
+	tool = 'line';
 	
 	/* Set up the canvas context (ctx) */
 	ctx = canvas.getContext('2d');
@@ -67,27 +77,43 @@ function BodyLoad() {
 	actions = {
 		data: [],	// empty on start
 		/* Store to the array */
-		save: function() {
-			this.data[this.data.length] = {
-				x1: line.x1,
-				y1: line.y1,
-				x2: line.x2,
-				y2: line.y2,
-				type: 'line',
-				color: line.color,
-				width: line.width
+		save: function() { //Take whatever is saved in the drawing vars and write them to the next space in the array
+			t = tool;
+			if(t == "line"){
+				this.data[this.data.length] = {
+					x1: line.x1,
+					y1: line.y1,
+					x2: line.x2,
+					y2: line.y2,
+					type: 'line',
+					color: line.color,
+					width: line.width
+				}
+			}else if(t == "fill"){
+				this.data[this.data.length] = {
+					x: fill.x,
+					y: fill.y,
+					color: fill.color,
+					type: 'fill'
+				}
 			}
 		},
 		/* Loop through the array and re-draw lines */
 		restore: function() {
-			for(var i=0;i<this.data.length;i++)
-				line.draw(this.data[i].x1, this.data[i].y1, this.data[i].x2, this.data[i].y2, 'restore', this.data[i].color, this.data[i].width);
+			for(var i=0;i<this.data.length;i++){
+				if(this.data[i].type == 'line'){
+					line.draw(this.data[i].x1, this.data[i].y1, this.data[i].x2, this.data[i].y2, 'restore', this.data[i].color, this.data[i].width);
+				}else if(this.data[i].type == 'fill'){
+					fill.draw(this.data[i].x, this.data[i].y, this.data[i].color, true);
+				}
+			}
 		},
 		/* Remove the last action */
 		undo: function() {
+			console.log("Removing from data array:\n" + JSON.stringify(this.data[this.data.length - 1]));
 			this.data.splice(this.data.length-1,1);
 			canvas.redraw();
-			this.restore();
+			//this.restore();
 		},
 		/* Wipe the slate clean */
 		purge: function() {
@@ -178,7 +204,7 @@ function BodyLoad() {
 				if(type=='line') {
 					actions.save();
 					canvas.redraw();
-					actions.restore();
+					//actions.restore();
 				}
 			}
 		},
@@ -187,7 +213,7 @@ function BodyLoad() {
 			this.update_options();
 			
 			canvas.redraw();
-			actions.restore();
+			//actions.restore();
 			
 			this.draw(this.x1,this.y1,this.snap_to_grid(x),this.snap_to_grid(y),'guide');
 		},
@@ -210,6 +236,55 @@ function BodyLoad() {
 			this.width = document.getElementById('line_width').value;
 		}
 	}
+
+	/* Fill tool, use this to fill boxes */
+	fill = {
+		color: 'blue',	// Default color is blue
+		x: 0, y: 0,	// Default coordinates are all 0,0
+		/* Record our starting x,y */
+		
+		//Create a new fill object and draw it
+		create: function(x, y){
+			this.update_options();
+			this.draw(x, y, this.color, false);
+		},
+
+		/* fill a space */
+		//Putting in x,y here fills the space between x,y and x+1,y+1.
+		draw: function(x,y,color,restore) {
+			console.log("Called draw with x=" + x + ",  y=" + y + ", color=" + color);
+			/* No color? It's this color! */
+			if(color==undefined)
+				ctx.fillStyle = this.color;
+			else
+				ctx.fillStyle = color;
+			
+			/* Draw the line */
+			var xstart = (x*spacing) + 1;
+			var xstop = xstart + spacing - 1;
+			var ystart = (y * spacing) + 1;
+			var ystop =  ystart + spacing - 1;
+
+			console.log("Filling rectangle " + xstart + ", " + xstop + ", " + ystart + ", " + ystop);
+
+			ctx.fillRect(xstart, ystart, xstop - xstart, ystop - ystart);
+			
+			/* Save it and clean up and guide lines */
+			if(!restore){
+			actions.save();
+			canvas.redraw();
+			//actions.restore();
+			}
+		},
+
+		/* Get all the set options from the toolset */
+		update_options: function() {
+			if(canvas.in_restore)
+				return false;
+	
+			this.color = document.getElementById('line_color').value;
+		}
+	}
 	
 
 	/* Clear out everything */
@@ -219,7 +294,7 @@ function BodyLoad() {
 
 
 	/* Redraw everything */
-	//This just draws the grid, not lines
+	//Original comment here said (not by me) that this draws just the lines, not the other stuff. That wasn't the case.
 	canvas.redraw = function() {		
 		this.clear();
 		
@@ -252,17 +327,27 @@ function BodyLoad() {
 	/* When the user moves the mouse */
 	canvas.onmousemove = function(e) {
 		if(!e) var e = window.event;
-		
-		var x = e.clientX;
-		var y = e.clientY;
-		
-		/* Update the coordinates */
-		toolset_coord.update(x,y);
-		popup.show(x,y);
-		
-		/* If we're drawing a line, show the guide line */
-		if(this.mousedown)
-			line.guide(x,y);
+
+		if(tool=="line"){ //different actions for the fill tool and the line tool
+			var x = e.clientX;
+			var y = e.clientY;
+			
+			/* Update the coordinates */
+			toolset_coord.update(x,y);
+			popup.show(x,y);
+			
+			/* If we're drawing a line, show the guide line */
+			if(this.mousedown)
+				line.guide(x,y);
+		}else if(tool=="fill"){
+			var x = e.clientX;
+			var y = e.clientY;
+			fill.x = Math.floor(roundQuarter(x/spacing));
+			fill.y = Math.floor(roundQuarter(y/spacing));
+
+			toolset_coord.update(x,y);
+
+		}
 	}
 
 
@@ -277,8 +362,13 @@ function BodyLoad() {
 		var y = e.clientY;
 
 		/* Set the start of the line and show the pop-up */
-		line.start(x,y);
-		popup.show(x,y);
+		console.log("Mousedown, tool is " + tool);
+		if(tool=="line"){
+			line.start(x,y);
+			popup.show(x,y);
+		}else{
+			fill.create(Math.floor(roundQuarter(x/spacing)), Math.floor(roundQuarter(y/spacing)));
+		}
 	}
 
 
@@ -286,15 +376,17 @@ function BodyLoad() {
 	canvas.onmouseup = function(e) {
 		if(!e) var e = window.event;
 		
-		/* We're no longer holding down */
-		this.mousedown = false;
-		
-		var x = e.clientX;
-		var y = e.clientY;
+		if(tool == 'line'){
+			/* We're no longer holding down */
+			this.mousedown = false;
+			
+			var x = e.clientX;
+			var y = e.clientY;
 
-		/* Set the stop point and hide the pop-up */
-		line.stop(x,y);
-		popup.hide();
+			/* Set the stop point and hide the pop-up */
+			line.stop(x,y);
+			popup.hide();
+		}
 	}
 	
 	
@@ -379,7 +471,14 @@ function getDocumentPPI() {
 <span id="coord">664,122</span>
 </p>
 <p>
-<label>Line Color</label>
+<label>Tool</label>
+<select id="tool_select" onchange="toolChange()">
+<option selected="">line</option>
+<option>fill</option>
+</select>
+</p>
+<p>
+<label>Color</label>
 <select id="line_color">
 <option>Black</option>
 <option>Red</option>
