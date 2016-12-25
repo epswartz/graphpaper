@@ -19,7 +19,13 @@ var tool;
 
 function toolChange(){
 	tool = document.getElementById("tool_select").value;
-	console.log("Changed tool to " + tool);
+	
+	if(tool=='fill'){
+		document.getElementById("line_width_p").style.display='none';
+	}else{
+		document.getElementById("line_width_p").style.display='block';
+	}
+	//console.log("Changed tool to " + tool);
 }
 
 //Handles file upload event
@@ -375,10 +381,12 @@ function BodyLoad() {
 	/* When the clicker comes back up */
 	canvas.onmouseup = function(e) {
 		if(!e) var e = window.event;
+
+		this.mousedown = false;
 		
 		if(tool == 'line'){
 			/* We're no longer holding down */
-			this.mousedown = false;
+			
 			
 			var x = e.clientX;
 			var y = e.clientY;
@@ -489,7 +497,7 @@ function getDocumentPPI() {
 <option>Purple</option>
 </select>
 </p>
-<p>
+<p id="line_width_p">
 <label>Line Width</label>
 <select id="line_width">
 <option>1</option>
