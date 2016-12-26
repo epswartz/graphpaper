@@ -107,13 +107,18 @@ function BodyLoad() {
 		},
 		/* Loop through the array and re-draw lines */
 		restore: function() {
+			//do all the fills
 			for(var i=0;i<this.data.length;i++){
-				if(this.data[i].type == 'line'){
-					line.draw(this.data[i].x1, this.data[i].y1, this.data[i].x2, this.data[i].y2, 'restore', this.data[i].color, this.data[i].width);
-				}else if(this.data[i].type == 'fill'){
+				if(this.data[i].type == 'fill'){
 					fill.draw(this.data[i].x, this.data[i].y, this.data[i].color, true);
 				}
 			}
+			//do all the lines
+			for(var i=0;i<this.data.length;i++){
+				if(this.data[i].type == 'line'){
+					line.draw(this.data[i].x1, this.data[i].y1, this.data[i].x2, this.data[i].y2, 'restore', this.data[i].color, this.data[i].width);
+				}
+			}	
 		},
 		/* Remove the last action */
 		undo: function() {
