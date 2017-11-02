@@ -85,7 +85,7 @@ function BodyLoad() {
   /* Update the coordinates in the toolset */
   toolset_coord.update = function(x, y) {
     this.innerHTML = roundQuarter(x / spacing) + ',' + roundQuarter(y / spacing);
-  }
+  };
 
 
   /* For keeping up with what we've done */
@@ -103,14 +103,14 @@ function BodyLoad() {
           type: 'line',
           color: line.color,
           width: line.width
-        }
+        };
       } else if (t == "fill") {
         this.data[this.data.length] = {
           x: fill.x,
           y: fill.y,
           color: fill.color,
           type: 'fill'
-        }
+        };
       }
       // Checking If browser Supports Local Storage, Then Save
       if (typeof(Storage) !== "undefined") {
@@ -174,7 +174,7 @@ function BodyLoad() {
       this.restore();
       console.log(this.data.length);
     }
-  }
+  };
 
 
   /* Draw lines with this */
@@ -202,7 +202,7 @@ function BodyLoad() {
     draw: function(x1, y1, x2, y2, type, color, width) {
       if (x1 != x2 || y1 != y2) { //If the length of the line is nonzero
         /* If we don't know what type, let's assume it's a plain old line */
-        if (type == undefined)
+        if (type === undefined)
           type = 'line';
 
         /* Only get the options if it's a plain old line */
@@ -210,13 +210,13 @@ function BodyLoad() {
           this.update_options();
 
         /* No color? It's this color! */
-        if (color == undefined)
+        if (color === undefined)
           ctx.strokeStyle = this.color;
         else
           ctx.strokeStyle = color;
 
         /* Even skinny people have width */
-        if (width == undefined)
+        if (width === undefined)
           ctx.lineWidth = this.width;
         else
           ctx.lineWidth = width;
@@ -250,7 +250,7 @@ function BodyLoad() {
       var p2;
 
       for (var i = p - (spacing / 2); i < p + (spacing / 2); i++)
-        if (i % spacing == 0)
+        if (i % spacing === 0)
           p2 = i;
 
       return p2;
@@ -263,7 +263,7 @@ function BodyLoad() {
       this.color = document.getElementById('line_color').value;
       this.width = document.getElementById('line_width').value;
     }
-  }
+  };
 
   /* Fill tool, use this to fill boxes */
   fill = {
@@ -283,7 +283,7 @@ function BodyLoad() {
     draw: function(x, y, color, restore) {
       console.log("Called draw with x=" + x + ",  y=" + y + ", color=" + color);
       /* No color? It's this color! */
-      if (color == undefined)
+      if (color === undefined)
         ctx.fillStyle = this.color;
       else
         ctx.fillStyle = color;
@@ -313,13 +313,13 @@ function BodyLoad() {
 
       this.color = document.getElementById('line_color').value;
     }
-  }
+  };
 
 
   /* Clear out everything */
   canvas.clear = function() {
     ctx.clearRect(0, 0, this.width, this.height);
-  }
+  };
 
 
   /* Redraw everything */
@@ -350,7 +350,7 @@ function BodyLoad() {
 
     /* Restore any saved actions */
     actions.restore();
-  }
+  };
 
 
   /* When the user moves the mouse */
@@ -378,7 +378,7 @@ function BodyLoad() {
       toolset_coord.update(x, y);
 
     }
-  }
+  };
 
 
   /* When the clicker goes down (but not back up) */
@@ -399,7 +399,7 @@ function BodyLoad() {
     } else {
       fill.create(Math.floor(roundQuarter(x / spacing)), Math.floor(roundQuarter(y / spacing)));
     }
-  }
+  };
 
 
   /* When the clicker comes back up */
@@ -419,7 +419,7 @@ function BodyLoad() {
       line.stop(x, y);
       popup.hide();
     }
-  }
+  };
 
 
   /* Show the pop-up */
@@ -437,7 +437,7 @@ function BodyLoad() {
 
     /* Show the pop-up */
     this.style.display = 'block';
-  }
+  };
 
 
   /* Use Pythagora's theorem to calculate distance */
@@ -455,20 +455,20 @@ function BodyLoad() {
     retval = Math.round(parseFloat(retval * scale / spacing) * 100) / 100;
 
     return retval;
-  }
+  };
 
 
   /* Hide the pop-up */
   popup.hide = function() {
     this.style.display = 'none';
-  }
+  };
 
 
   /* Now that all functions and objects are set, draw the grid */
   canvas.redraw();
 
   if (sessionStorage.length) {
-      var data = JSON.parse(sessionStorage['data'])
+      var data = JSON.parse(sessionStorage['data']);
       actions.data = data;
       for (var i = 0; i < data.length; ++i) {
         if (data[i].type == 'fill') {
