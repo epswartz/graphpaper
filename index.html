@@ -18,447 +18,468 @@ var tool;
 
 
 //Handles when the user changes which tool they are using
-function toolChange(){
-	tool = document.getElementById("tool_select").value;
-	
-	if(tool=='fill'){
-		document.getElementById("line_width_p").style.display='none';
-	}else{
-		document.getElementById("line_width_p").style.display='block';
-	}
-	//console.log("Changed tool to " + tool);
+function toolChange() {
+  tool = document.getElementById("tool_select").value;
+
+  if (tool == 'fill') {
+    document.getElementById("line_width_p").style.display = 'none';
+  } else {
+    document.getElementById("line_width_p").style.display = 'block';
+  }
+  //console.log("Changed tool to " + tool);
 }
 
 //Handles file upload event
 function handleFileSelect(evt) {
-    console.log("Saw upload evt");
+  console.log("Saw upload evt");
 
-    var files = evt.target.files; // FileList object
+  var files = evt.target.files; // FileList object
 
-    //Read the first file only, couldn't get the file picker to work without input being multiple. Will open as GitHub issue
-    var f = files[0];
-    var reader = new FileReader();
+  //Read the first file only, couldn't get the file picker to work without input being multiple. Will open as GitHub issue
+  var f = files[0];
+  var reader = new FileReader();
 
-    reader.onload = (function(theFile) {
-    	return function(e){
-    		actions.upload(e.target.result);
+  reader.onload = (function(theFile) {
+    return function(e) {
+      actions.upload(e.target.result);
 
-    	};
-    })(f);
+    };
+  })(f);
 
-    reader.readAsText(f);	
+  reader.readAsText(f);
 
 }
 
 function roundQuarter(num) {
-    return Math.round(num*4)/4;
-}  
-
-
-/* Called when everything is ready */
-function BodyLoad() {
-	/* Assign elements to variables */
-	popup = document.getElementById('popup');
-	canvas = document.getElementById('canvas');
-	toolset_coord = document.getElementById('coord');
-	tool = 'line';
-	
-	/* Set up the canvas context (ctx) */
-	ctx = canvas.getContext('2d');
-	
-	/* Set some canvas properties */
-	canvas.width = window.innerWidth;
-	canvas.height = window.innerHeight;
-	canvas.w = canvas.width;	// short-hand
-	canvas.h = canvas.height;	// short-hand
-	canvas.mousedown = false;
-	
-	
-	/* Update the coordinates in the toolset */
-	toolset_coord.update = function(x,y) {
-		this.innerHTML = roundQuarter(x/spacing)+','+roundQuarter(y/spacing);
-	}
-	
-	
-	/* For keeping up with what we've done */
-	actions = {
-		data: [],	// empty on start
-		/* Store to the array */
-		save: function() { //Take whatever is saved in the drawing vars and write them to the next space in the array
-			t = tool;
-			if(t == "line"){
-				this.data[this.data.length] = {
-					x1: line.x1,
-					y1: line.y1,
-					x2: line.x2,
-					y2: line.y2,
-					type: 'line',
-					color: line.color,
-					width: line.width
-				}
-			}else if(t == "fill"){
-				this.data[this.data.length] = {
-					x: fill.x,
-					y: fill.y,
-					color: fill.color,
-					type: 'fill'
-				}
-			}
-		},
-		/* Loop through the array and re-draw lines */
-		restore: function() {
-			//do all the fills
-			for(var i=0;i<this.data.length;i++){
-				if(this.data[i].type == 'fill'){
-					fill.draw(this.data[i].x, this.data[i].y, this.data[i].color, true);
-				}
-			}
-			//do all the lines
-			for(var i=0;i<this.data.length;i++){
-				if(this.data[i].type == 'line'){
-					line.draw(this.data[i].x1, this.data[i].y1, this.data[i].x2, this.data[i].y2, 'restore', this.data[i].color, this.data[i].width);
-				}
-			}	
-		},
-		/* Remove the last action */
-		undo: function() {
-			console.log("Removing from data array:\n" + JSON.stringify(this.data[this.data.length - 1]));
-			this.data.splice(this.data.length-1,1);
-			canvas.redraw();
-			//this.restore();
-		},
-		/* Wipe the slate clean */
-		purge: function() {
-			for(var i=this.data.length;i>0;i--)
-				this.undo();
-		},
-		/* Export to PNG */
-		png: function() {
-			alert('This will open the image in a new window. Right-click and choose Save As to download the image.');
-			window.open(canvas.toDataURL('image/png'), 'Save as PNG');
-		},
-
-		/* Download a txt file containing JSON that stores the drawing to be continued later */
-		download: function() {
-			
-			var uri = 'data:text;charset=utf-8,' + JSON.stringify(this.data);
-
-			var downloadLink = document.createElement("a");
-			downloadLink.href = uri;
-			downloadLink.download = "paper.json";
-
-			document.body.appendChild(downloadLink);
-			downloadLink.click();
-			document.body.removeChild(downloadLink);
-		},
-
-		/* Load and draw new lines based on JSON text input, intended for use with file upload */
-		upload: function(inString){
-			this.purge();
-			this.data = JSON.parse(inString);
-			console.log(this.data.length);
-			this.save();
-			this.restore();
-			console.log(this.data.length);
-		}
-	}
-	
-
-	/* Draw lines with this */
-	line = {
-		snap: true,	// Snap to grid is enabled by default // As of v2 this is probably unneeded
-		color: 'blue',	// Default color is blue
-		width: 2,	// Default width is 2
-		x1: 0, y1: 0, x2: 0, y2: 0,	// Default coordinates are all 0,0
-		/* Record our starting x,y */
-		start: function(x,y) {
-			this.x1 = this.snap_to_grid(x);
-			this.y1 = this.snap_to_grid(y);
-		},
-		/* Record our stopping x,y and draw */
-		stop: function(x,y) {
-			this.x2 = this.snap_to_grid(x);
-			this.y2 = this.snap_to_grid(y);
-
-			this.draw(this.x1,this.y1,this.x2,this.y2,'line');
-		},
-		/* Draw a line */
-		draw: function(x1,y1,x2,y2,type,color,width) {
-			if(x1 != x2 || y1 != y2){ //If the length of the line is nonzero
-				/* If we don't know what type, let's assume it's a plain old line */
-				if(type==undefined)
-					type = 'line';
-				
-				/* Only get the options if it's a plain old line */
-				if(type=='line')
-					this.update_options();
-				
-				/* No color? It's this color! */
-				if(color==undefined)
-					ctx.strokeStyle = this.color;
-				else
-					ctx.strokeStyle = color;
-				
-				/* Even skinny people have width */
-				if(width==undefined)
-					ctx.lineWidth = this.width;
-				else
-					ctx.lineWidth = width;
-				
-				/* Draw the line */
-				ctx.beginPath();	// Set up the path
-				ctx.moveTo(x1,y1);	// The start of the line
-				ctx.lineTo(x2,y2);	// The end of the line
-				ctx.closePath();	// Close the path
-				ctx.stroke();		// Draw it
-				
-				/* If it's a plain line, save it and clean up and guide lines */
-				if(type=='line') {
-					actions.save();
-					canvas.redraw();
-					//actions.restore();
-				}
-			}
-		},
-		/* For drawing a handy guide line */
-		guide: function(x,y) {
-			this.update_options();
-			
-			canvas.redraw();
-			//actions.restore();
-			
-			this.draw(this.x1,this.y1,this.snap_to_grid(x),this.snap_to_grid(y),'guide');
-		},
-		/* Calculate the nearest snap point (calculated by spacing) */
-		snap_to_grid: function(p) {	
-			var p2;
-
-			for(var i=p-(spacing/2);i<p+(spacing/2);i++)
-				if(i%spacing==0)
-					p2 = i;
-
-			return p2;
-		},
-		/* Get all the set options from the toolset */
-		update_options: function() {
-			if(canvas.in_restore)
-				return false;
-	
-			this.color = document.getElementById('line_color').value;
-			this.width = document.getElementById('line_width').value;
-		}
-	}
-
-	/* Fill tool, use this to fill boxes */
-	fill = {
-		color: 'blue',	// Default color is blue
-		x: 0, y: 0,	// Default coordinates are all 0,0
-		/* Record our starting x,y */
-		
-		//Create a new fill object and draw it
-		create: function(x, y){
-			this.update_options();
-			this.draw(x, y, this.color, false);
-		},
-
-		/* fill a space */
-		//Putting in x,y here fills the space between x,y and x+1,y+1.
-		draw: function(x,y,color,restore) {
-			console.log("Called draw with x=" + x + ",  y=" + y + ", color=" + color);
-			/* No color? It's this color! */
-			if(color==undefined)
-				ctx.fillStyle = this.color;
-			else
-				ctx.fillStyle = color;
-			
-			/* Draw the line */
-			var xstart = (x*spacing) + 1;
-			var xstop = xstart + spacing - 2;
-			var ystart = (y * spacing) + 1;
-			var ystop =  ystart + spacing - 2;
-
-			console.log("Filling rectangle " + xstart + ", " + xstop + ", " + ystart + ", " + ystop);
-
-			ctx.fillRect(xstart, ystart, xstop - xstart, ystop - ystart);
-			
-			/* Save it and clean up and guide lines */
-			if(!restore){
-			actions.save();
-			canvas.redraw();
-			//actions.restore();
-			}
-		},
-
-		/* Get all the set options from the toolset */
-		update_options: function() {
-			if(canvas.in_restore)
-				return false;
-	
-			this.color = document.getElementById('line_color').value;
-		}
-	}
-	
-
-	/* Clear out everything */
-	canvas.clear = function() {
-		ctx.clearRect(0,0,this.width,this.height);
-	}
-
-
-	/* Redraw everything */
-	//Original comment here said (not by me) that this draws just the lines, not the other stuff. That wasn't the case.
-	canvas.redraw = function() {		
-		this.clear();
-		
-		/* Prepare to draw the grid */
-		ctx.beginPath();
-		ctx.strokeStyle = 'lightblue';
-		ctx.lineWidth = 1;
-
-		/* Vertical rule */
-		for(var y=spacing;y<this.h;y=y+spacing) {
-			ctx.moveTo(0,y);
-			ctx.lineTo(this.w,y);
-		}
-
-		/* Horizontal rule */
-		for(var x=spacing;x<this.w;x=x+spacing) {
-			ctx.moveTo(x,0);
-			ctx.lineTo(x,this.h);
-		}
-
-		/* Draw the grid */
-		ctx.closePath();
-		ctx.stroke();
-		
-		/* Restore any saved actions */
-		actions.restore();
-	}
-
-
-	/* When the user moves the mouse */
-	canvas.onmousemove = function(e) {
-		if(!e) var e = window.event;
-
-		if(tool=="line"){ //different actions for the fill tool and the line tool
-			var x = e.clientX;
-			var y = e.clientY;
-			
-			/* Update the coordinates */
-			toolset_coord.update(x,y);
-			popup.show(x,y);
-			
-			/* If we're drawing a line, show the guide line */
-			if(this.mousedown)
-				line.guide(x,y);
-		}else if(tool=="fill"){
-			var x = e.clientX;
-			var y = e.clientY;
-			fill.x = Math.floor(roundQuarter(x/spacing));
-			fill.y = Math.floor(roundQuarter(y/spacing));
-
-			toolset_coord.update(x,y);
-
-		}
-	}
-
-
-	/* When the clicker goes down (but not back up) */
-	canvas.onmousedown = function(e) {
-		if(!e) var e = window.event;
-		
-		/* Confirm it's down (handy for later) */
-		this.mousedown = true;
-		
-		var x = e.clientX;
-		var y = e.clientY;
-
-		/* Set the start of the line and show the pop-up */
-		console.log("Mousedown, tool is " + tool);
-		if(tool=="line"){
-			line.start(x,y);
-			popup.show(x,y);
-		}else{
-			fill.create(Math.floor(roundQuarter(x/spacing)), Math.floor(roundQuarter(y/spacing)));
-		}
-	}
-
-
-	/* When the clicker comes back up */
-	canvas.onmouseup = function(e) {
-		if(!e) var e = window.event;
-
-		this.mousedown = false;
-		
-		if(tool == 'line'){
-			/* We're no longer holding down */
-			
-			
-			var x = e.clientX;
-			var y = e.clientY;
-
-			/* Set the stop point and hide the pop-up */
-			line.stop(x,y);
-			popup.hide();
-		}
-	}
-	
-	
-	/* Show the pop-up */
-	popup.show = function (x,y) {
-		if(!canvas.mousedown)
-			return false;
-		
-		/* Offset it from the cursor a little bit */
-		this.style.left = (x+30)+'px';
-		this.style.top = (y+30)+'px';
-		
-		/* Display coordinates and distance */
-		this.innerHTML = roundQuarter(x/spacing)+', '+roundQuarter(y/spacing);
-		this.innerHTML += ', '+this.distance(line.x1,line.y1,line.snap_to_grid(x),line.snap_to_grid(y))+" units";
-		
-		/* Show the pop-up */
-		this.style.display = 'block';
-	}
-	
-	
-	/* Use Pythagora's theorem to calculate distance */
-	popup.distance = function(x1,y1,x2,y2) {
-		var scale = 1;
-
-		var a = x1-x2;
-		var b = y1-y2;
-
-		if(a<0) a *= -1;
-		if(b<0) b *= -1;
-
-		var retval = Math.sqrt(Math.pow(a,2)+Math.pow(b,2));
-
-		retval = Math.round(parseFloat(retval*scale/spacing)*100)/100;
-
-		return retval;
-	}
-	
-	
-	/* Hide the pop-up */
-	popup.hide = function() {
-		this.style.display = 'none';
-	}
-	
-	
-	/* Now that all functions and objects are set, draw the grid */
-	canvas.redraw();
+  return Math.round(num * 4) / 4;
 }
 
 function getDocumentPPI() {
-    var elem = document.createElement('div');
-    elem.style.width = '1in';
-    document.body.appendChild(elem);
-    var ppi = elem.offsetWidth;
-    //document.body.removeChild(elem);
-    return ppi;
+  var elem = document.createElement('div');
+  elem.style.width = '1in';
+  document.body.appendChild(elem);
+  var ppi = elem.offsetWidth;
+  //document.body.removeChild(elem);
+  return ppi;
 }
 
+/* Called when everything is ready */
+function BodyLoad() {
+  /* Assign elements to variables */
+  popup = document.getElementById('popup');
+  canvas = document.getElementById('canvas');
+  toolset_coord = document.getElementById('coord');
+  tool = 'line';
+
+  /* Set up the canvas context (ctx) */
+  ctx = canvas.getContext('2d');
+
+  /* Set some canvas properties */
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  canvas.w = canvas.width; // short-hand
+  canvas.h = canvas.height; // short-hand
+  canvas.mousedown = false;
+
+
+  /* Update the coordinates in the toolset */
+  toolset_coord.update = function(x, y) {
+    this.innerHTML = roundQuarter(x / spacing) + ',' + roundQuarter(y / spacing);
+  }
+
+
+  /* For keeping up with what we've done */
+  actions = {
+    data: [], // empty on start
+    /* Store to the array */
+    save: function() { //Take whatever is saved in the drawing vars and write them to the next space in the array
+      t = tool;
+      if (t == "line") {
+        this.data[this.data.length] = {
+          x1: line.x1,
+          y1: line.y1,
+          x2: line.x2,
+          y2: line.y2,
+          type: 'line',
+          color: line.color,
+          width: line.width
+        }
+      } else if (t == "fill") {
+        this.data[this.data.length] = {
+          x: fill.x,
+          y: fill.y,
+          color: fill.color,
+          type: 'fill'
+        }
+      }
+      // Checking If browser Supports Local Storage, Then Save
+      if (typeof(Storage) !== "undefined") {
+        sessionStorage.setItem('data', JSON.stringify(this.data));
+      }
+      // console.log(this.data);
+    },
+    /* Loop through the array and re-draw lines */
+    restore: function() {
+
+      for (var i = 0; i < this.data.length; i++) {
+        //do all the fills
+        if (this.data[i].type == 'fill') {
+          fill.draw(this.data[i].x, this.data[i].y, this.data[i].color, true);
+          //do all the lines
+        } else if (this.data[i].type == 'line') {
+          line.draw(this.data[i].x1, this.data[i].y1, this.data[i].x2, this.data[i].y2, 'restore', this.data[i].color, this.data[i].width);
+        }
+      }
+    },
+    /* Remove the last action */
+    undo: function() {
+      console.log("Removing from data array:\n" + JSON.stringify(this.data[this.data.length - 1]));
+      this.data.splice(this.data.length - 1, 1);
+      canvas.redraw();
+      //this.restore();
+    },
+    /* Wipe the slate clean */
+    purge: function() {
+      sessionStorage.clear();
+      for (var i = this.data.length; i > 0; i--)
+        this.undo();
+      // location.reload();
+    },
+    /* Export to PNG */
+    png: function() {
+      alert('This will open the image in a new window. Right-click and choose Save As to download the image.');
+      window.open(canvas.toDataURL('image/png'), 'Save as PNG');
+    },
+
+    /* Download a txt file containing JSON that stores the drawing to be continued later */
+    download: function() {
+
+      var uri = 'data:text;charset=utf-8,' + JSON.stringify(this.data);
+
+      var downloadLink = document.createElement("a");
+      downloadLink.href = uri;
+      downloadLink.download = "paper.json";
+
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+    },
+
+    /* Load and draw new lines based on JSON text input, intended for use with file upload */
+    upload: function(inString) {
+      this.purge();
+      this.data = JSON.parse(inString);
+      console.log(this.data.length);
+      this.save();
+      this.restore();
+      console.log(this.data.length);
+    }
+  }
+
+
+  /* Draw lines with this */
+  line = {
+    snap: true, // Snap to grid is enabled by default // As of v2 this is probably unneeded
+    color: 'blue', // Default color is blue
+    width: 2, // Default width is 2
+    x1: 0,
+    y1: 0,
+    x2: 0,
+    y2: 0, // Default coordinates are all 0,0
+    /* Record our starting x,y */
+    start: function(x, y) {
+      this.x1 = this.snap_to_grid(x);
+      this.y1 = this.snap_to_grid(y);
+    },
+    /* Record our stopping x,y and draw */
+    stop: function(x, y) {
+      this.x2 = this.snap_to_grid(x);
+      this.y2 = this.snap_to_grid(y);
+
+      this.draw(this.x1, this.y1, this.x2, this.y2, 'line');
+    },
+    /* Draw a line */
+    draw: function(x1, y1, x2, y2, type, color, width) {
+      if (x1 != x2 || y1 != y2) { //If the length of the line is nonzero
+        /* If we don't know what type, let's assume it's a plain old line */
+        if (type == undefined)
+          type = 'line';
+
+        /* Only get the options if it's a plain old line */
+        if (type == 'line')
+          this.update_options();
+
+        /* No color? It's this color! */
+        if (color == undefined)
+          ctx.strokeStyle = this.color;
+        else
+          ctx.strokeStyle = color;
+
+        /* Even skinny people have width */
+        if (width == undefined)
+          ctx.lineWidth = this.width;
+        else
+          ctx.lineWidth = width;
+
+        /* Draw the line */
+        ctx.beginPath(); // Set up the path
+        ctx.moveTo(x1, y1); // The start of the line
+        ctx.lineTo(x2, y2); // The end of the line
+        ctx.closePath(); // Close the path
+        ctx.stroke(); // Draw it
+
+        /* If it's a plain line, save it and clean up and guide lines */
+        if (type == 'line') {
+          actions.save();
+          canvas.redraw();
+          actions.restore();
+        }
+      }
+    },
+    /* For drawing a handy guide line */
+    guide: function(x, y) {
+      this.update_options();
+
+      canvas.redraw();
+      actions.restore();
+
+      this.draw(this.x1, this.y1, this.snap_to_grid(x), this.snap_to_grid(y), 'guide');
+    },
+    /* Calculate the nearest snap point (calculated by spacing) */
+    snap_to_grid: function(p) {
+      var p2;
+
+      for (var i = p - (spacing / 2); i < p + (spacing / 2); i++)
+        if (i % spacing == 0)
+          p2 = i;
+
+      return p2;
+    },
+    /* Get all the set options from the toolset */
+    update_options: function() {
+      if (canvas.in_restore)
+        return false;
+
+      this.color = document.getElementById('line_color').value;
+      this.width = document.getElementById('line_width').value;
+    }
+  }
+
+  /* Fill tool, use this to fill boxes */
+  fill = {
+    color: 'black', // Default color is black
+    x: 0,
+    y: 0, // Default coordinates are all 0,0
+    /* Record our starting x,y */
+
+    //Create a new fill object and draw it
+    create: function(x, y) {
+      this.update_options();
+      this.draw(x, y, this.color, false);
+    },
+
+    /* fill a space */
+    //Putting in x,y here fills the space between x,y and x+1,y+1.
+    draw: function(x, y, color, restore) {
+      console.log("Called draw with x=" + x + ",  y=" + y + ", color=" + color);
+      /* No color? It's this color! */
+      if (color == undefined)
+        ctx.fillStyle = this.color;
+      else
+        ctx.fillStyle = color;
+
+      /* Draw the line */
+      var xstart = (x * spacing) + 1;
+      var xstop = xstart + spacing - 2;
+      var ystart = (y * spacing) + 1;
+      var ystop = ystart + spacing - 2;
+
+      console.log("Filling rectangle " + xstart + ", " + xstop + ", " + ystart + ", " + ystop);
+
+      ctx.fillRect(xstart, ystart, xstop - xstart, ystop - ystart);
+
+      /* Save it and clean up and guide lines */
+      if (!restore) {
+        actions.save();
+        canvas.redraw();
+        actions.restore();
+      }
+    },
+
+    /* Get all the set options from the toolset */
+    update_options: function() {
+      if (canvas.in_restore)
+        return false;
+
+      this.color = document.getElementById('line_color').value;
+    }
+  }
+
+
+  /* Clear out everything */
+  canvas.clear = function() {
+    ctx.clearRect(0, 0, this.width, this.height);
+  }
+
+
+  /* Redraw everything */
+  //Original comment here said (not by me) that this draws just the lines, not the other stuff. That wasn't the case.
+  canvas.redraw = function() {
+    this.clear();
+
+    /* Prepare to draw the grid */
+    ctx.beginPath();
+    ctx.strokeStyle = 'lightblue';
+    ctx.lineWidth = 1;
+
+    /* Vertical rule */
+    for (var y = spacing; y < this.h; y = y + spacing) {
+      ctx.moveTo(0, y);
+      ctx.lineTo(this.w, y);
+    }
+
+    /* Horizontal rule */
+    for (var x = spacing; x < this.w; x = x + spacing) {
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, this.h);
+    }
+
+    /* Draw the grid */
+    ctx.closePath();
+    ctx.stroke();
+
+    /* Restore any saved actions */
+    actions.restore();
+  }
+
+
+  /* When the user moves the mouse */
+  canvas.onmousemove = function(e) {
+
+    if (!e) var e = window.event;
+
+    if (tool == "line") { //different actions for the fill tool and the line tool
+      var x = e.clientX;
+      var y = e.clientY;
+
+      /* Update the coordinates */
+      toolset_coord.update(x, y);
+      popup.show(x, y);
+
+      /* If we're drawing a line, show the guide line */
+      if (this.mousedown)
+        line.guide(x, y);
+    } else if (tool == "fill") {
+      var x = e.clientX;
+      var y = e.clientY;
+      fill.x = Math.floor(roundQuarter(x / spacing));
+      fill.y = Math.floor(roundQuarter(y / spacing));
+
+      toolset_coord.update(x, y);
+
+    }
+  }
+
+
+  /* When the clicker goes down (but not back up) */
+  canvas.onmousedown = function(e) {
+    if (!e) var e = window.event;
+
+    /* Confirm it's down (handy for later) */
+    this.mousedown = true;
+
+    var x = e.clientX;
+    var y = e.clientY;
+
+    /* Set the start of the line and show the pop-up */
+    console.log("Mousedown, tool is " + tool);
+    if (tool == "line") {
+      line.start(x, y);
+      popup.show(x, y);
+    } else {
+      fill.create(Math.floor(roundQuarter(x / spacing)), Math.floor(roundQuarter(y / spacing)));
+    }
+  }
+
+
+  /* When the clicker comes back up */
+  canvas.onmouseup = function(e) {
+    if (!e) var e = window.event;
+
+    this.mousedown = false;
+
+    if (tool == 'line') {
+      /* We're no longer holding down */
+
+
+      var x = e.clientX;
+      var y = e.clientY;
+
+      /* Set the stop point and hide the pop-up */
+      line.stop(x, y);
+      popup.hide();
+    }
+  }
+
+
+  /* Show the pop-up */
+  popup.show = function(x, y) {
+    if (!canvas.mousedown)
+      return false;
+
+    /* Offset it from the cursor a little bit */
+    this.style.left = (x + 30) + 'px';
+    this.style.top = (y + 30) + 'px';
+
+    /* Display coordinates and distance */
+    this.innerHTML = roundQuarter(x / spacing) + ', ' + roundQuarter(y / spacing);
+    this.innerHTML += ', ' + this.distance(line.x1, line.y1, line.snap_to_grid(x), line.snap_to_grid(y)) + " units";
+
+    /* Show the pop-up */
+    this.style.display = 'block';
+  }
+
+
+  /* Use Pythagora's theorem to calculate distance */
+  popup.distance = function(x1, y1, x2, y2) {
+    var scale = 1;
+
+    var a = x1 - x2;
+    var b = y1 - y2;
+
+    if (a < 0) a *= -1;
+    if (b < 0) b *= -1;
+
+    var retval = Math.sqrt(Math.pow(a, 2) + Math.pow(b, 2));
+
+    retval = Math.round(parseFloat(retval * scale / spacing) * 100) / 100;
+
+    return retval;
+  }
+
+
+  /* Hide the pop-up */
+  popup.hide = function() {
+    this.style.display = 'none';
+  }
+
+
+  /* Now that all functions and objects are set, draw the grid */
+  canvas.redraw();
+
+  if (sessionStorage.length) {
+      var data = JSON.parse(sessionStorage['data'])
+      actions.data = data;
+      for (var i = 0; i < data.length; ++i) {
+        if (data[i].type == 'fill') {
+          fill.draw(data[i].x, data[i].y, data[i].color, true);
+          //do all the lines
+        } else if (data[i].type == 'line') {
+          line.draw(data[i].x1, data[i].y1, data[i].x2, data[i].y2, 'restore', data[i].color, data[i].width);
+        }
+      }
+  }
+}
 
 
 </script>
