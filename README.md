@@ -1,5 +1,5 @@
 # graphpaper
-A simple and completely open source browser based graph paper editor.
+A simple browser based graph paper editor.
 
 To use the tool, visit https://epswartz.github.io/graphpaper/
 
