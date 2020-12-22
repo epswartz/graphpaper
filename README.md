@@ -1,6 +1,8 @@
 # graphpaper
 A simple browser based graph paper editor.
 
+![banner](./graphpaper.png)
+
 To use the tool, visit https://epswartz.github.io/graphpaper/
 
 Hot tip: You can download the page and run offline, it works just fine.
